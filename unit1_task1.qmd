@@ -1,0 +1,132 @@
+---
+title: "Client Report - Exploring Names"
+subtitle: "Unit 1 Task 1"
+author: "William G Hardy"
+format:
+  html:
+    self-contained: true
+    page-layout: full
+    title-block-banner: true
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
+    html-math-method: katex
+    code-fold: true
+    code-summary: "Show the code"
+    code-overflow: wrap
+    code-copy: hover
+    code-tools:
+        source: false
+        toggle: true
+        caption: See code
+execute: 
+  warning: false
+    
+---
+
+```{python}
+import pandas as pd
+import numpy as np
+from lets_plot import *
+
+LetsPlot.setup_html(isolated_frame=True)
+```
+
+```{python}
+# Learn morea about Code Cells: https://quarto.org/docs/reference/cells/cells-jupyter.html
+
+# Include and execute your code here
+df = pd.read_csv("https://github.com/byuidatascience/data4names/raw/master/data-raw/names_year/names_year.csv")
+```
+
+## QUESTION 1
+
+__What was the earliest year that the name ‘Felisha’ was used?__
+
+This graph shows the earliest, or oldest, years that the name Felisa was uesd. the three earlist being the years '64, '65, and '66
+
+```{python}
+# Q1
+felisha_df = df[df['name'] == 'Felisha']
+felisha_df = felisha_df.sort_values('year', ascending=True)
+felisha_df.head(4)
+```
+
+
+## QUESTION 2
+
+__What year had the most babies named 'David'? How many babies were named 'David' that year?__
+
+In this graph it shows the year with the most babies named David, and breaks it down also to show the total across the country and even breaking it down by state in the year of 1955. the total amount of those babies is roughly 64,755 babies.
+
+```{python}
+# Q2
+david_df = df[df['name'] == 'David']
+david_max = david_df[david_df['Total'] == david_df['Total'].max()]
+print(david_max)
+```
+
+
+## QUESTION 3
+
+__What year did your name hit its peak? How many babies were named your name in that year?__
+
+The name i have is William, and the graph shows that my name peaked in 1951 with having a total of 52,877 babies.
+
+```{python}
+# Q3
+my_name = 'William'
+#used to filter just your name
+myname_df = df[df['name'] == my_name]
+#Meant to  Group by year and sum Total across all states
+myname_grouped = myname_df.groupby('year')['Total'].sum().reset_index()
+# meant to Find the year with the highest count
+myname_peak = myname_grouped[myname_grouped['Total'] == myname_grouped['Total'].max()]
+print(myname_peak)
+```
+
+
+
+## QUESTION 4
+
+__How many babies are named ‘Oliver’ in the state of Utah for all years?__  
+
+in Utah the total number of babies named oliver that were born across the years is 1704 babies.
+
+```{python}
+# Q4
+oliver_utah = df[df['name'] == 'Oliver']
+total_oliver_utah = oliver_utah['UT'].sum()
+
+print("Total number of Olivers in Utah across all years:", total_oliver_utah)
+
+```
+
+---
+
+## QUESTION 5
+
+__In the most recent year, what was the most common female name in Utah?__ 
+
+based on the data we have, we can safely assume that the most common name in the most recent year in Utah is emma in the year 2015.
+
+```{python}
+# Q5
+most_recent_year = df['year'].max()
+
+# Filter data for Utah and the most recent year
+utah_most_recent = df[(df['year'] == most_recent_year) & (df['UT'] > 0)]
+
+#i'm assuming all female names are ending in 'a':
+utah_female_names = utah_most_recent[utah_most_recent['name'].str.endswith('a')]
+
+# Find the most common female name
+most_common_name = utah_female_names[['name', 'UT']].groupby('name')['UT'].sum().idxmax()
+
+print("Most common female name in Utah in the most recent year:", most_common_name)
+
+```
+
+
+---

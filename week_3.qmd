@@ -1,0 +1,51 @@
+---
+title: "week 3"
+format: html
+---
+# class 1
+
+```{python}
+import pandas as pd
+import numpy as np
+from lets_plot import *
+
+LetsPlot.setup_html(isolated_frame=True)
+```
+
+
+```{python}
+#read in the data
+df = pd.read_csv("https://byui-cse.github.io/cse110-course/lesson11/life-expectancy.csv")
+df = df.rename(columns = {'Life expectancy (years)' : 'Life'})
+df
+```
+
+#review: three counties
+
+Create a dataset that includes 3 countries
+
+
+```{python}
+three_countries = (df.query('Entity ==["England", "Germany", "Russia"]'))
+three_countries ['Entity'].value_counts()
+```
+
+
+```{python}
+p = (
+    ggplot(data = three_countries, mapping= aes(x = "Year", y = "Life",color ="Entity"))
+    + geom_line()
+    +scale_x_continuous(limits = [1950, 2020], format = 'd')
+    +labs(title = "Life Expectancy for 3 countries")
+    +theme_grey()
+    +theme(axis_title= element_blank(),
+        plot_title = element_text(color = "blue",
+        hjust = 0.5, size = 25),
+        panel_grid = element_line(linetype = 3))
+)
+p
+```
+
+```{python}
+p + theme_minimal2()
+```

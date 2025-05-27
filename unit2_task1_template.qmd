@@ -1,0 +1,98 @@
+---
+title: "Client Report - BYU-Idaho Players and Comparing Teams"
+subtitle: "Unit 2 Task 2"
+author: "William Hardy"
+format:
+  html:
+    self-contained: true
+    page-layout: full
+    title-block-banner: true
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
+    html-math-method: katex
+    code-fold: true
+    code-summary: "Show the code"
+    code-overflow: wrap
+    code-copy: hover
+    code-tools:
+        source: false
+        toggle: true
+        caption: See code
+execute: 
+  warning: false
+    
+---
+
+```{python}
+import pandas as pd 
+import numpy as np
+import sqlite3
+from lets_plot import *
+
+LetsPlot.setup_html(isolated_frame=True)
+```
+
+
+```{python}
+# Learn morea about Code Cells: https://quarto.org/docs/reference/cells/cells-jupyter.html
+
+# Include and execute your code here
+sqlite_file = 'lahmansbaseballdb.sqlite'
+# this file must be in the same location as your .qmd or .py file
+con = sqlite3.connect(sqlite_file)
+```
+
+## QUESTION 1
+
+__Unit 2 Code Along__
+
+__Describe your results and analysis here_
+
+```{python}
+# Include and execute your code here
+q='SELECT * FROM allstarfull LIMIT 5'
+results = pd.read_sql_query(q,con)
+
+results
+```
+
+
+## QUESTION 2
+
+__Use the same query as above, but only include players with at least 10 at bats that year. Print the top 5 results.__  
+
+_Describe your results and analysis here_
+
+```{python}
+# Include and execute your code here
+q = '''
+    SELECT  playerID,
+            G as 'Games Managed',
+            W as 'Wins',
+            L as 'Losses',
+            --CAST(W AS FLOAT) /G AS 'Win %',
+            round ((W*1.0/G),3) as 'Win %'
+    FROM managers
+    WHERE G >20 AND yearID >2000 AND
+        (teamID NOT IN ('OAK','ATL')) OR
+        teamID LIKE 'S%'
+    ORDER BY "Win %" DESC
+'''
+managers = pd.read_sql_query(q,con)
+managers
+```
+
+
+## QUESTION 3
+
+__Now calculate the batting average for players over their entire careers (all years combined). Only include players with at least 100 at bats over their entire career, and print the top 5 results.__
+
+_Describe your results and analysis here_
+
+```{python}
+# Include and execute your code here
+
+
+```

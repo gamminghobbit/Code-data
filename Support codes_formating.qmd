@@ -1,0 +1,143 @@
+---
+title: "Untitled"
+format: html
+---
+
+this is text!
+# header
+## sub-hgeader
+### sub-sub-header
+__bold text__
+_itallics_
+Code: Command+shit+i or cntrl+shift+i
+
+```{python}
+print("hello world")
+```
+
+```{python}
+x=2+2
+print(x)
+```
+
+```{python}
+import pandas as pd
+import numpy as np
+from lets_plot import *
+
+LetsPlot.setup_html(isolated_frame=True)
+```
+
+```{python}
+df = pd.read_csv("https://byui-cse.github.io/cse110-course/lesson11/life-expectancy.csv")
+df
+```
+
+```{python}
+df.shape #attribute of data frame
+df.size
+df.columns
+df.tail() #function with a df input
+df.info()
+df.describe()
+```
+
+how many countries are in the dataset?
+what are the range of years in the data set?
+
+```{python}
+df['Entity'].nunique()
+df['Entity'].value_counts()
+df['Year'].min()
+df['Year'].max()
+df['Year'].describe()
+```
+
+# subset parts of your data
+## Single bracket
+
+```{python}
+df[['Entity', 'Code', 'Year']]
+df[:2]
+
+df.Year[0:2]
+```
+
+## subsetting columns and rows at the same time
+### using loc command
+'loc' uses names to refer to indecies
+
+```{python}
+df.loc[11:23, 'Year']
+```
+
+### using iloc
+
+```{python}
+df.iloc[11:23,3]
+df.iloc[0:4,:]
+df.iloc[-2: , [1,3]]
+```
+
+## Getting a set of rows and columns based on a condtion
+
+```{python}
+df['Entity']=='Japan'
+df[df['Entity']=='Japan']
+df[df['Entity'].isin(["France", "Japan", "El Salvador"])]
+```
+
+the pandas command: 'query'
+
+```{python}
+df.query('Entity =="France"')
+df.query('Entity == ["France", "Japan"]')
+df.query('Entity != "France"')
+```
+
+05/01/25 - w2c2
+## create a chart
+### a quick review
+
+```{python}
+#a review exercise:get a dataset of just the united states.
+usa =(df.query('Entity == "United States"')
+            .rename(columns = {'Life expectancy (years)': 'Life'})
+) 
+usa
+```
+
+for bar chart
+```{python}
+(
+    ggplot(data = usa,
+            mapping = aes(x = "Life"))+
+            geom_histogram()
+)
+```
+
+### a helpful chart for project 1
+for a line chart with a given arrow.
+```{python}
+(
+    ggplot(data = usa)
+    +geom_line(mapping = aes(x='Year', y='Life'))
+    +geom_text(x=1920, y=47, label = "spanish Flu",
+            hjust ="left" )
+    +geom_segment(x = 1960, y = 60, xend = 1943, yend = 64, arrow = arrow(), color = "red")
+    +geom_text( x=1960, y = 60, label = "last life dip",hjust = 'left')
+)
+```
+
+similar to the last graph but adds a segment
+```{python}
+(
+    ggplot(data = usa)
+    +geom_line(mapping = aes(x='Year', y='Life'))
+    +scale_x_continuous(limits = [1915,1975])
+    +geom_text(x=1920, y=47, label = "spanish Flu",
+            hjust ="left" )
+    +geom_segment(x = 1960, y = 60, xend = 1943, yend = 64, arrow = arrow(), color = "red")
+    +geom_text( x=1960, y = 60, label = "last life dip",hjust = 'left')
+)
+```
