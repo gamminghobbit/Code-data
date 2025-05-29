@@ -48,14 +48,18 @@ con = sqlite3.connect(sqlite_file)
 
 __Unit 2 Code Along__
 
-__Describe your results and analysis here_
+__I see that the the the five batters have the same batting average, and that there is no corrolation between them when we compare them to the years they played in._
 
 ```{python}
-# Include and execute your code here
-q='SELECT * FROM allstarfull LIMIT 5'
-results = pd.read_sql_query(q,con)
-
-results
+query1 = """
+SELECT playerID, yearID, CAST(H AS FLOAT)/AB AS batting_average
+FROM Batting
+WHERE AB >= 1
+ORDER BY batting_average DESC, playerID ASC
+LIMIT 5;
+"""
+batting_avg_1ab = pd.read_sql_query(query1, con)
+batting_avg_1ab
 ```
 
 
@@ -63,25 +67,18 @@ results
 
 __Use the same query as above, but only include players with at least 10 at bats that year. Print the top 5 results.__  
 
-_Describe your results and analysis here_
+_I have noticed that the batters had an average around 60% of succesful hits._
 
 ```{python}
-# Include and execute your code here
-q = '''
-    SELECT  playerID,
-            G as 'Games Managed',
-            W as 'Wins',
-            L as 'Losses',
-            --CAST(W AS FLOAT) /G AS 'Win %',
-            round ((W*1.0/G),3) as 'Win %'
-    FROM managers
-    WHERE G >20 AND yearID >2000 AND
-        (teamID NOT IN ('OAK','ATL')) OR
-        teamID LIKE 'S%'
-    ORDER BY "Win %" DESC
-'''
-managers = pd.read_sql_query(q,con)
-managers
+query2 = """
+SELECT playerID, yearID, CAST(H AS FLOAT)/AB AS batting_average
+FROM Batting
+WHERE AB >= 10
+ORDER BY batting_average DESC, playerID ASC
+LIMIT 5;
+"""
+batting_avg_10ab = pd.read_sql_query(query2, con)
+batting_avg_10ab
 ```
 
 
@@ -89,10 +86,17 @@ managers
 
 __Now calculate the batting average for players over their entire careers (all years combined). Only include players with at least 100 at bats over their entire career, and print the top 5 results.__
 
-_Describe your results and analysis here_
+_Personal opinion? they suck!, However, this is the best results having practially an average of  35.8% of succesussful batting attempts._
 
 ```{python}
-# Include and execute your code here
-
-
+query3 = """
+SELECT playerID, SUM(H) * 1.0 / SUM(AB) AS career_avg
+FROM Batting
+GROUP BY playerID
+HAVING SUM(AB) >= 100
+ORDER BY career_avg DESC, playerID ASC
+LIMIT 5;
+"""
+career_avg = pd.read_sql_query(query3, con)
+career_avg
 ```
