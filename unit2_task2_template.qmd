@@ -48,14 +48,14 @@ con = sqlite3.connect(sqlite_file)
 
 __Write an SQL query to create a new dataframe about baseball players who attended BYU-Idaho. The new table should contain five columns: playerID, schoolID, salary, and the yearID/teamID associated with each salary. Order the table by salary (highest to lowest) and print out the table in your report.__
 
-_type your results and analysis here_
+_The table shows the price range over the years increase the the longer the players play on a team, along with it changing when they get traded to a different team._
 
 ```{python}
 query1 = """
 SELECT cp.playerID, cp.schoolID, sal.salary, sal.yearID, sal.teamID
 FROM CollegePlaying cp
 JOIN Salaries sal ON cp.playerID = sal.playerID
-WHERE cp.schoolID = 'idahofalls'
+WHERE cp.schoolID = 'idbyuid'
 ORDER BY sal.salary DESC;
 """
 byu_idaho_players = pd.read_sql_query(query1, con)
@@ -67,22 +67,27 @@ byu_idaho_players
 
 __Pick any two baseball teams and compare them using a metric of your choice (average salary, home runs, number of wins, etc). Be creative! Write an SQL query to get the data you need, then make a graph using Lets-Plot to visualize the comparison. What do you learn?__ 
 
-_type your results and analysis here_
+_Comparing BYU-I Kansas State University on there appearances in The MLB, is a whooping 6,324 players from Kansas State VS. BYU-I's 1,198 players._
 
 ```{python}
 query2 = """
-SELECT teamID, yearID, SUM(HR) AS total_HR
-FROM Batting
-WHERE teamID IN ('NYA', 'BOS') AND yearID >= 2000
-GROUP BY teamID, yearID
-ORDER BY yearID, teamID;
+SELECT cp.schoolID, SUM(app.G_all) AS total_appearances
+FROM CollegePlaying cp
+JOIN Appearances app ON cp.playerID = app.playerID
+WHERE cp.schoolID IN ('idbyuid', 'kansasst')
+GROUP BY cp.schoolID;
 """
-team_hr = pd.read_sql_query(query2, con)
-team_hr
+school_appearances = pd.read_sql_query(query2, con)
+school_appearances
+from lets_plot import *
 
-ggplot(team_hr, aes(x='yearID', y='total_HR', color='teamID')) + \
-    geom_line(size=2) + \
-    ggtitle("Total Home Runs Per Year (2000–Present): NYA vs BOS") + \
-    xlab("Year") + ylab("Total HR") + \
-    theme_minimal()
+from lets_plot import *
+
+LetsPlot.setup_html(isolated_frame=True)  # Make sure this is called once at the top!
+
+ggplot(school_appearances, aes(x='schoolID', y='total_appearances', fill='schoolID')) + \
+    geom_bar(stat='identity') + \
+    ggtitle("Total MLB Appearances by School (BYU-Idaho vs Kansas State)") + \
+    xlab("School ID") + ylab("Total Appearances") + \
+    theme_classic()
 ```
