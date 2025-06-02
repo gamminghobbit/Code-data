@@ -1,0 +1,108 @@
+---
+title: "Client Report - Longevity of Baseball Players"
+subtitle: "Unit 2 Task 3"
+author: "William Hardy"
+format:
+  html:
+    self-contained: true
+    page-layout: full
+    title-block-banner: true
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
+    html-math-method: katex
+    code-fold: true
+    code-summary: "Show the code"
+    code-overflow: wrap
+    code-copy: hover
+    code-tools:
+        source: false
+        toggle: true
+        caption: See code
+execute: 
+  warning: false
+    
+---
+
+```{python}
+import pandas as pd 
+import numpy as np
+import sqlite3
+from lets_plot import *
+
+LetsPlot.setup_html(isolated_frame=True)
+```
+
+
+```{python}
+# Learn morea about Code Cells: https://quarto.org/docs/reference/cells/cells-jupyter.html
+
+# Include and execute your code here
+sqlite_file = 'lahmansbaseballdb.sqlite'
+# this file must be in the same location as your .qmd or .py file
+con = sqlite3.connect(sqlite_file)
+```
+
+## QUESTION 1
+
+__Calculate the average career length for players who have played at least 10 games in their career. Use years as the unit of measure.__
+
+_This small chart is indicates that On average most players who play 10+ games, is about 5.84 years._
+
+```{python}
+query1 = """
+SELECT AVG(career_length) AS avg_career_length
+FROM (
+    SELECT playerID, MAX(yearID) - MIN(yearID) AS career_length
+    FROM Batting
+    GROUP BY playerID
+    HAVING SUM(G) >= 10
+);
+"""
+df1 = pd.read_sql(query1, con)
+df1
+```
+
+
+## QUESTION 2
+
+1. Identify the top 10 players with the longest careers (based on the number of years they played). Include their:
+
+    - playerID
+    - first_name
+    - last_name
+    - career_length
+
+_Top 10 players have a massive career length ranging from 27 years (Evers, Jennings, Ryan, & Street) all the way up to Altrock having 35 years worth of playing baseball._
+
+```{python}
+query2 = """
+SELECT b.playerID, p.nameFirst AS first_name, p.nameLast AS last_name,
+       MAX(b.yearID) - MIN(b.yearID) AS career_length
+FROM Batting b
+JOIN People p ON b.playerID = p.playerID
+GROUP BY b.playerID
+HAVING SUM(b.G) >= 10
+ORDER BY career_length DESC
+LIMIT 10;
+"""
+
+# Run the query and load results into a DataFrame
+df2 = pd.read_sql(query2, con)
+
+# Sort df2 by career_length descending
+df2 = df2.sort_values('career_length', ascending=False)
+
+# Convert last_name to categorical with ordering so the plot respects order
+df2['last_name'] = pd.Categorical(df2['last_name'], categories=df2['last_name'], ordered=True)
+
+from lets_plot import *
+
+ggplot(df2, aes(x='last_name', y='career_length')) + \
+    geom_bar(stat='identity', fill='#4C72B0') + \
+    labs(x='Player Last Name', y='Career Length (years)', title='Top 10 Longest MLB Careers') + \
+    theme(axis_text_x=element_text(angle=45, hjust=1))
+```
+
+
