@@ -1,0 +1,164 @@
+---
+title: "Client Report - Comparing data types"
+subtitle: "project 3"
+author: "William Hardy"
+format:
+  html:
+    self-contained: true
+    page-layout: full
+    title-block-banner: true
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
+    html-math-method: katex
+    code-fold: true
+    code-summary: "Show the code"
+    code-overflow: wrap
+    code-copy: hover
+    code-tools:
+        source: false
+        toggle: true
+        caption: See code
+execute: 
+  warning: false
+---
+
+```{python}
+import pandas as pd
+import numpy as np
+from lets_plot import *
+
+LetsPlot.setup_html()
+
+# Load the data
+url = "https://github.com/byuidatascience/data4missing/raw/master/data-raw/flights_missing/flights_missing.json"
+df = pd.read_json(url)
+
+# Basic cleaning
+df.replace(["", "n/a"], np.nan, inplace=True)
+df['num_of_delays_late_aircraft'] = df['num_of_delays_late_aircraft'].replace(-999, np.nan)
+
+# Convert delay columns to numeric
+delay_cols = [
+    'num_of_delays_carrier',
+    'num_of_delays_weather',
+    'num_of_delays_nas',
+    'num_of_delays_security',
+    'num_of_delays_late_aircraft'
+]
+for col in delay_cols:
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+# Fill missing late aircraft with mean
+late_aircraft_mean = df['num_of_delays_late_aircraft'].mean()
+df['num_of_delays_late_aircraft'] = df['num_of_delays_late_aircraft'].fillna(late_aircraft_mean)
+
+# Create weather-related delays column (custom logic from Task 2)
+summer_months = ['April', 'May', 'June', 'July', 'August']
+def calculate_weather_delays(row):
+    weather = row['num_of_delays_weather'] or 0
+    late = 0.3 * (row['num_of_delays_late_aircraft'] or 0)
+    if row['month'] in summer_months:
+        nas = 0.4 * (row['num_of_delays_nas'] or 0)
+    else:
+        nas = 0.65 * (row['num_of_delays_nas'] or 0)
+    return weather + late + nas
+
+df['weather_related_delays'] = df.apply(calculate_weather_delays, axis=1)
+
+```
+
+
+```{python}
+# Total number of flights
+total_flights = df['num_of_flights_total'].sum()
+
+# Total delays by category
+total_weather_delays = df['weather_related_delays'].sum()
+total_carrier_delays = df['num_of_delays_carrier'].sum()
+total_security_delays = df['num_of_delays_security'].sum()
+
+# Calculate proportions
+proportions = pd.DataFrame({
+    'delay_type': ['Weather', 'Carrier', 'Security'],
+    'total_delays': [total_weather_delays, total_carrier_delays, total_security_delays],
+    'proportion_of_flights': [
+        total_weather_delays / total_flights,
+        total_carrier_delays / total_flights,
+        total_security_delays / total_flights
+    ]
+})
+
+proportions
+```
+
+### Question 1: Which Delay is the Worst?
+_To compare delays, I calculated the proportion of total flights affected by each type of delay:_
+_- Weather-related (custom estimate from Task 2)_
+_- Carrier delay (from dataset)_
+_- Security delay (from dataset)_
+
+_As seen in the chart and table, **weather-related delays** account for the largest proportion of flight disruptions overall. Security delays are relatively rare._
+
+_This highlights how weather, even when mild, is a major factor in system-wide delays._
+
+
+```{python}
+from lets_plot import *
+
+# Plot proportions of delay types
+ggplot(proportions, aes(x='delay_type', y='proportion_of_flights')) + \
+    geom_bar(stat='identity', fill='orange') + \
+    ggtitle("Proportion of Total Flights Delayed by Type") + \
+    xlab("Delay Type") + ylab("Proportion of Flights Delayed") + \
+    theme_minimal()
+
+```
+
+
+```{python}
+# Group delay totals by airport
+delay_summary = df.groupby('airport_code').agg(
+    total_flights=('num_of_flights_total', 'sum'),
+    total_weather=('weather_related_delays', 'sum'),
+    total_carrier=('num_of_delays_carrier', 'sum'),
+    total_security=('num_of_delays_security', 'sum')
+).reset_index()
+
+# Calculate proportions
+delay_summary['weather_prop'] = delay_summary['total_weather'] / delay_summary['total_flights']
+delay_summary['carrier_prop'] = delay_summary['total_carrier'] / delay_summary['total_flights']
+delay_summary['security_prop'] = delay_summary['total_security'] / delay_summary['total_flights']
+
+# Melt to long format for plotting
+long_df = delay_summary.melt(
+    id_vars='airport_code',
+    value_vars=['weather_prop', 'carrier_prop', 'security_prop'],
+    var_name='delay_type',
+    value_name='proportion'
+)
+
+# Clean up delay_type names
+long_df['delay_type'] = long_df['delay_type'].str.replace('_prop', '').str.capitalize()
+```
+
+### Question 2: Delay Types Across Airports
+_This grouped bar chart compares the proportion of weather, carrier, and security delays across all 7 airports._
+
+_The chart shows that:_
+_- Weather delays tend to dominate at certain airports more than others._
+_- Carrier delays are more evenly distributed._
+_- Security delays are consistently low across the board._
+
+_This suggests that some airports may be more vulnerable to environmental or operational factors depending on region and traffic volume._
+
+```{python}
+# Create grouped bar chart
+ggplot(long_df, aes(x='airport_code', y='proportion', fill='delay_type')) + \
+    geom_bar(stat='identity', position='dodge') + \
+    ggtitle("Proportion of Delay Types by Airport") + \
+    xlab("Airport") + ylab("Proportion of Flights Delayed") + \
+    scale_fill_manual(values=['#4CAF50', '#2196F3', '#FFC107']) + \
+    theme_minimal()
+```
