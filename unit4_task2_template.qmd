@@ -1,0 +1,123 @@
+---
+title: "Client Report -How good is it, really?"
+subtitle: "Unit 4 Task 2"
+author: "William Hardy"
+format:
+  html:
+    self-contained: true
+    page-layout: full
+    title-block-banner: true
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
+    html-math-method: katex
+    code-fold: true
+    code-summary: "Show the code"
+    code-overflow: wrap
+    code-copy: hover
+    code-tools:
+        source: false
+        toggle: true
+        caption: See code
+execute: 
+  warning: false
+    
+---
+
+```{python}
+import pandas as pd 
+import numpy as np
+from lets_plot import *
+# add the additional libraries you need to import for ML here
+df = pd.read_csv("dwellings_ml.csv")
+
+# Create target column
+df['before1980'] = df['yrbuilt'] < 1980
+
+# Explore data
+display(df.shape)
+display(df.head())
+display(df.isnull().sum())
+display(df.dtypes)
+display(df['before1980'].value_counts(normalize=True))
+LetsPlot.setup_html(isolated_frame=True)
+```
+
+
+```{python}
+# import your data here using pandas and the URL
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Prep features and labels
+X = df.drop(columns=['before1980', 'yrbuilt', 'parcel'])
+y = df['before1980']
+
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+
+# Build model
+model = RandomForestClassifier(random_state=42)
+model.fit(X_train, y_train)
+
+# Predictions and accuracy
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Accuracy: {accuracy:.2%}")
+
+# Confusion matrix
+cm = confusion_matrix(y_test, y_pred)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix")
+plt.show()
+```
+
+## QUESTION 1 Describe the quality of your classification model using 2-3 different evaluation metrics. You also need to explain how to interpret each of the evaluation metrics you use.  
+_We evaluated our Random Forest model using multiple classification metrics: **accuracy**, **precision**, **recall**, and **F1 score**._
+_- **Accuracy** indicates how often the model's predictions are correct overall. Our model achieved an accuracy of 92.88%, meaning it is highly reliable across all classes._
+_- **Precision** (for Pre-1980 homes) shows the proportion of houses predicted to be built before 1980 that actually were. This helps reduce false positives, which is important when inspecting homes for asbestos._
+_- **Recall** tells us how well the model identifies all the true Pre-1980 homes. High recall means we’re less likely to miss dangerous homes built before asbestos regulations._
+_- **F1 Score** is the balance between precision and recall. It gives us a single number to understand the model’s effectiveness, especially useful when classes are not perfectly balanced._
+_These metrics show our model is not only accurate but also strong in identifying at-risk homes._
+
+```{python}
+# Include and execute your code here
+
+from sklearn.metrics import classification_report
+
+# Run classification report
+report = classification_report(y_test, y_pred, target_names=['Post-1980', 'Pre-1980'])
+print(report)
+```
+
+
+## QUESTION 2
+
+__Justify your classification model by discussing the most important features selected by your model.__ This discussion should include a feature importance chart and a description of the features.
+
+_The most important features in our Random Forest model include `livearea`, `quality_C`, `condition_Good`, `sprice`, and others. These features were most useful for predicting whether a house was built before 1980._
+- **Livearea** likely reflects home size, which can differ between older and newer homes.
+- **Quality and condition** ratings may correlate with age—older homes may be rated differently due to outdated materials or construction styles.
+- **Sprice** (sale price) may indirectly capture age-related market value trends.
+_By identifying which features contribute most to the predictions, we can better understand and trust the model’s behavior. This also helps if adjustments or further inspections are needed based on what traits signal older housing stock._
+
+```{python}
+# Include and execute your code here
+# Feature importance
+importances = model.feature_importances_
+features = X.columns
+feat_series = pd.Series(importances, index=features).sort_values(ascending=True)
+
+# Plot Top 10
+feat_series.tail(10).plot(kind='barh', title='Top 10 Most Important Features')
+plt.xlabel('Importance Score')
+plt.ylabel('Feature')
+plt.tight_layout()
+plt.show()
+```
