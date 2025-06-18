@@ -33,38 +33,81 @@ import sqlite3
 from lets_plot import *
 LetsPlot.setup_html(isolated_frame=True)
 
-# Learn morea about Code Cells: https://quarto.org/docs/reference/cells/cells-jupyter.html
-
 # Include and execute your code here
 sqlite_file = 'lahmansbaseballdb.sqlite'
 # this file must be in the same location as your .qmd or .py file
 con = sqlite3.connect(sqlite_file)
 ```
 
-
+__This chart shows the different price ranges, but compares each position with their highest prices when in between the years 1985 & 1995.__
 ```{python}
+# Query: Average salary by position (1985–1995)
 query = """
-SELECT
-    a.playerID,
-    a.yearID,
-    a.POS,
-    AVG(s.salary) as avg_salary
-FROM
-    Appearances a
-JOIN
-    Salaries s
-ON
-    a.playerID = s.playerID
-    AND a.yearID = s.yearID
-WHERE
-    a.yearID BETWEEN 1985 AND 1995
-GROUP BY
-    a.playerID, a.yearID, a.POS
-ORDER BY
-    avg_salary DESC
-LIMIT 10;
+WITH PositionCounts AS (
+  SELECT 
+    playerID,
+    yearID,
+    CASE
+      WHEN G_p >= G_c AND G_p >= G_1b AND G_p >= G_2b AND G_p >= G_3b AND G_p >= G_ss AND G_p >= G_lf AND G_p >= G_cf AND G_p >= G_rf AND G_p >= G_dh THEN 'P'
+      WHEN G_c >= G_1b AND G_c >= G_2b AND G_c >= G_3b AND G_c >= G_ss AND G_c >= G_lf AND G_c >= G_cf AND G_c >= G_rf AND G_c >= G_dh THEN 'C'
+      WHEN G_1b >= G_2b AND G_1b >= G_3b AND G_1b >= G_ss AND G_1b >= G_lf AND G_1b >= G_cf AND G_1b >= G_rf AND G_1b >= G_dh THEN '1B'
+      WHEN G_2b >= G_3b AND G_2b >= G_ss AND G_2b >= G_lf AND G_2b >= G_cf AND G_2b >= G_rf AND G_2b >= G_dh THEN '2B'
+      WHEN G_3b >= G_ss AND G_3b >= G_lf AND G_3b >= G_cf AND G_3b >= G_rf AND G_3b >= G_dh THEN '3B'
+      WHEN G_ss >= G_lf AND G_ss >= G_cf AND G_ss >= G_rf AND G_ss >= G_dh THEN 'SS'
+      WHEN G_lf >= G_cf AND G_lf >= G_rf AND G_lf >= G_dh THEN 'LF'
+      WHEN G_cf >= G_rf AND G_cf >= G_dh THEN 'CF'
+      WHEN G_rf >= G_dh THEN 'RF'
+      ELSE 'DH'
+    END AS position
+  FROM appearances
+  WHERE yearID BETWEEN 1985 AND 1995
+),
+MainPosition AS (
+  SELECT playerID, yearID, position
+  FROM PositionCounts
+),
+SalariesByPosition AS (
+  SELECT mp.position, s.salary, s.playerID
+  FROM MainPosition mp
+  JOIN salaries s ON s.playerID = mp.playerID AND s.yearID = mp.yearID
+),
+Agg AS (
+  SELECT 
+    position,
+    ROUND(AVG(salary), 2) AS avg_salary,
+    COUNT(DISTINCT playerID) AS total_players,
+    MAX(salary) AS highest_salary
+  FROM SalariesByPosition
+  GROUP BY position
+)
+SELECT 
+  position,
+  avg_salary,
+  total_players,
+  highest_salary,
+  CASE 
+    WHEN avg_salary > 3000000 THEN 'High Salary'
+    WHEN avg_salary BETWEEN 2000000 AND 3000000 THEN 'Medium Salary'
+    ELSE 'Low Salary'
+  END AS salary_category
+FROM Agg
+ORDER BY avg_salary DESC;
 """
 
+# Correct import - no geom_col here!
+from lets_plot import ggplot, aes, geom_bar, ggtitle, xlab, ylab, theme_minimal, theme, element_text
+
 df = pd.read_sql_query(query, con)
-print(df.head())
+df_sorted = df.sort_values('avg_salary', ascending=False)
+ggplot(df_sorted, aes(x='position', y='avg_salary')) + \
+    geom_bar(stat='identity', fill='#3498db') + \
+    ggtitle('Average MLB Salary by Position (1985–1995)') + \
+    xlab('Position') + \
+    ylab('Average Salary (in Millions USD)') + \
+    theme_minimal() + \
+    theme(
+        axis_text_x=element_text(angle=45, hjust=1),
+        plot_title=element_text(size=16, face='bold'),
+        axis_title=element_text(size=12)
+    )
 ```
