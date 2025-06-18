@@ -46,44 +46,43 @@ df = pd.read_json("https://github.com/byuidatascience/data4missing/raw/master/da
 
 1. __Which airport has the worst delays?__ Describe the metric you chose, and why you chose it to determine the “worst” airport. Your answer should include a summary table that lists (for each airport) the total number of flights, total number of delayed flights, proportion of delayed flights, and average delay time in hours. 
 
-_Describe your results and analysis here_
+_To evaluate airport delays, I created a summary table showing the total number of flights, total number of delayed flights, the proportion of delays, and average delay time (in hours) for each airport. I chose **proportion of delayed flights** as the key metric to determine which airport is the worst, as it reflects how consistently unreliable an airport is, regardless of its size. Based on this metric, the airport with the highest proportion of delayed flights is likely the most problematic for travelers._
 
 ```{python}
-# Include and execute your code here
-# Clean missing values (reuse from Task 1)
 df.replace(["", "n/a"], np.nan, inplace=True)
 
-# Convert delay columns to numeric (in case they're object due to missing data)
+# Step 1: List delay columns
 delay_cols = [
-    'carrier_ct', 'weather_ct', 'nas_ct', 'security_ct', 'late_aircraft_ct',
-    'carrier_delay', 'weather_delay', 'nas_delay', 'security_delay', 'late_aircraft_delay'
+    'num_of_delays_carrier',
+    'num_of_delays_weather',
+    'num_of_delays_nas',
+    'num_of_delays_security',
+    'num_of_delays_late_aircraft'
 ]
-df[delay_cols] = df[delay_cols].apply(pd.to_numeric, errors='coerce')
 
-# Total delayed flights = sum of delay counts
-df["total_delayed_flights"] = df[[
-    'carrier_ct', 'weather_ct', 'nas_ct', 'security_ct', 'late_aircraft_ct'
-]].sum(axis=1)
+# Step 2: Convert delay columns to numeric (in case some have strings)
+for col in delay_cols:
+    df[col] = pd.to_numeric(df[col], errors='coerce')
 
-# Total delay time = sum of all delay minutes
-df["total_delay_minutes"] = df[[
-    'carrier_delay', 'weather_delay', 'nas_delay', 'security_delay', 'late_aircraft_delay'
-]].sum(axis=1)
+# Step 3: Create total delay column
+df['total_delays'] = df[delay_cols].sum(axis=1)
 
-# Convert minutes to hours
-df["total_delay_hours"] = df["total_delay_minutes"] / 60
-
-# Group by airport
-summary = df.groupby("airport_code").agg(
+# Step 4: Group and summarize
+summary = df.groupby('airport_code').agg(
     total_flights=('num_of_flights_total', 'sum'),
-    total_delays=('total_delayed_flights', 'sum'),
-    delay_proportion=('total_delayed_flights', lambda x: x.sum() / df.loc[x.index, 'num_of_flights_total'].sum()),
-    avg_delay_hours=('total_delay_hours', 'mean')
+    total_delayed_flights=('total_delays', 'sum'),
+    avg_delay_minutes=('minutes_delayed_total', 'mean')
 ).reset_index()
 
-summary.sort_values("delay_proportion", ascending=False, inplace=True)
-summary
+# Step 5: Add proportion and convert avg delay to hours
+summary['prop_delayed'] = summary['total_delayed_flights'] / summary['total_flights']
+summary['avg_delay_hours'] = summary['avg_delay_minutes'] / 60
 
+# Step 6: Clean and display
+summary = summary[['airport_code', 'total_flights', 'total_delayed_flights', 'prop_delayed', 'avg_delay_hours']]
+summary.sort_values('prop_delayed', ascending=False, inplace=True)
+
+summary
 ```
 
 ## QUESTION 2
@@ -94,22 +93,65 @@ According to the BTS website, the “Weather” category only accounts for sever
     a. 30% of all delayed flights in the Late-Arriving category are due to weather  
     a. From April to August, 40% of delayed flights in the NAS category are due to weather. The rest of the months, the proportion rises to 65%  
 
-_Describe your results and analysis here_
+_One of the discoveries that I noticed is that the airport ATL in january, shows a negative delay for aircrafts that are late._
 
 ```{python}
-# Include and execute your code here
+# Treat -999 as a missing value
+df['num_of_delays_late_aircraft'] = df['num_of_delays_late_aircraft'].replace(-999, np.nan)
 
+# Now fill missing values with the column mean
+late_aircraft_mean = df['num_of_delays_late_aircraft'].astype(float).mean()
+df['num_of_delays_late_aircraft'] = df['num_of_delays_late_aircraft'].fillna(late_aircraft_mean)
 
+# Make sure all relevant columns are numeric
+df['num_of_delays_weather'] = pd.to_numeric(df['num_of_delays_weather'], errors='coerce')
+df['num_of_delays_nas'] = pd.to_numeric(df['num_of_delays_nas'], errors='coerce')
+df['num_of_delays_late_aircraft'] = pd.to_numeric(df['num_of_delays_late_aircraft'], errors='coerce')
+
+# Define which months are April–August
+summer_months = ['April', 'May', 'June', 'July', 'August']
+
+# Define a function to calculate weather-related delays
+def calculate_weather_delays(row):
+    weather = row['num_of_delays_weather'] or 0
+    late_aircraft = 0.3 * (row['num_of_delays_late_aircraft'] or 0)
+    
+    if row['month'] in summer_months:
+        nas = 0.4 * (row['num_of_delays_nas'] or 0)
+    else:
+        nas = 0.65 * (row['num_of_delays_nas'] or 0)
+    
+    return weather + late_aircraft + nas
+
+# Apply the calculation
+df['weather_related_delays'] = df.apply(calculate_weather_delays, axis=1)
+
+# Show first 5 rows
+df[['airport_code', 'month', 'num_of_delays_weather', 'num_of_delays_late_aircraft', 'num_of_delays_nas', 'weather_related_delays']].head()
 ```
 
 ## Question 3
 
 __Using the new weather variable calculated above, create a barplot showing the proportion of all flights that are delayed by weather at each airport. Describe what you learn from this graph.__  
 
-_Describe your results and analysis here_
+_Based on the bar chart I'm surprised to see SLC having the lowest portion of flights delayed by weather._
 
 ```{python}
-# Include and execute your code here
+from lets_plot import *
 
+# Summarize total weather delays and flights per airport
+weather_summary = df.groupby('airport_code').agg(
+    total_weather_delays=('weather_related_delays', 'sum'),
+    total_flights=('num_of_flights_total', 'sum')
+).reset_index()
 
+# Add proportion column
+weather_summary['prop_weather_delayed'] = weather_summary['total_weather_delays'] / weather_summary['total_flights']
+
+# Create the bar plot
+ggplot(weather_summary, aes(x='airport_code', y='prop_weather_delayed')) + \
+    geom_bar(stat='identity', fill='blue') + \
+    ggtitle('The Flights Delayed by Weather at Each Airport') + \
+    xlab('Airport') + ylab('Proportion Delayed') + \
+    theme_minimal()
 ```
