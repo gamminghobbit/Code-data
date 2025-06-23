@@ -1,0 +1,125 @@
+---
+title: "Unit 4 Stretch - Regression ML"
+author: "William Hardy"
+format:
+  html:
+    self-contained: true
+    page-layout: full
+    title-block-banner: true
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
+    html-math-method: katex
+    code-fold: true
+    code-summary: "Show the code"
+    code-overflow: wrap
+    code-copy: hover
+    code-tools:
+        source: false
+        toggle: true
+        caption: See code
+execute: 
+  warning: false
+---
+
+<!-- setup for everything -->
+```{python}
+import pandas as pd
+import numpy as np
+from lets_plot import *
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Load dataset
+df = pd.read_csv("dwellings_ml.csv")
+
+# Create the target column for grouping
+df['before1980'] = df['yrbuilt'] < 1980
+# Drop target and non-informative columns
+X = df.drop(columns=['before1980', 'yrbuilt', 'parcel'])
+y = df['before1980']
+
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+
+LetsPlot.setup_html(isolated_frame=True)
+```
+
+# Part 1: Classifier Comparison
+## Model 1
+```{python}
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+# Use df_main or df_combined
+X = df.drop(columns=['yrbuilt', 'parcel'])
+y = df['yrbuilt']
+
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+
+# Model
+reg = RandomForestRegressor(random_state=42)
+reg.fit(X_train, y_train)
+y_pred = reg.predict(X_test)
+
+# Metrics
+mae = mean_absolute_error(y_test, y_pred)
+rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+r2 = r2_score(y_test, y_pred)
+print(f"MAE: {mae:.2f}, RMSE: {rmse:.2f}, R²: {r2:.2f}")
+```
+
+## Model 2 - decision tree
+```{python}
+tree_model = DecisionTreeClassifier(random_state=42)
+tree_model.fit(X_train, y_train)
+tree_preds = tree_model.predict(X_test)
+
+print("Decision Tree Classification Report")
+print(classification_report(y_test, tree_preds))
+
+# Feature importance
+tree_importances = pd.Series(tree_model.feature_importances_, index=X.columns)
+tree_importances.sort_values(ascending=False).head(10).plot(kind='barh', title="Decision Tree Feature Importance")
+plt.gca().invert_yaxis()
+plt.show()
+
+```
+
+## Model 3 - Gradient Boost
+```{python}
+gb_model = GradientBoostingClassifier(random_state=42)
+gb_model.fit(X_train, y_train)
+gb_preds = gb_model.predict(X_test)
+
+print("Gradient Boosting Classification Report")
+print(classification_report(y_test, gb_preds))
+
+# Feature importance
+gb_importances = pd.Series(gb_model.feature_importances_, index=X.columns)
+gb_importances.sort_values(ascending=False).head(10).plot(kind='barh', title="Gradient Boosting Feature Importance")
+plt.gca().invert_yaxis()
+plt.show()
+
+```
+
+```{python}
+df_main = pd.read_csv("dwellings_ml.csv")
+df_neigh = pd.read_csv("dwellings_neighborhoods_ml.csv")
+df_combined = df_main.merge(df_neigh, on='parcel')
+
+```
+
+## Final Summary – Model Comparison, Data Join, and Regression
+
+_To help the State of Colorado identify homes built before 1980, we trained and compared three classification models: **Decision Tree**, **Random Forest**, and **Gradient Boosting**. Among these, the **Random Forest Classifier** showed the best overall performance in terms of accuracy, precision, and recall. It also offered clear feature importance insights and performed well out-of-the-box, making it our top recommendation._
+
+_After selecting Random Forest as the best model, we enhanced the dataset by joining it with neighborhood-level data. This added context such as average sale prices and building density to each home record. We re-trained the Random Forest model using this enriched dataset. The model’s performance remained high and improved slightly, suggesting that neighborhood data can further boost predictive power. However, the improvement wasn’t significant enough to change our model recommendation._
+
+_Finally, we explored a regression approach to predict the actual **year a house was built**, rather than classifying it before/after 1980. We used a **Random Forest Regressor** for this task. The model achieved a **Mean Absolute Error (MAE) of 7.25**, **Root Mean Squared Error (RMSE) of 11.70**, and a strong **R² score of 0.90**. These results show that the model can predict a home’s build year within a reasonable error margin and could be useful for estimating missing `yrbuilt` values. For classification tasks (e.g., asbestos safety flags), we recommend using the **Random Forest Classifier** with the joined dataset for slightly better results. For estimating missing year-built values, the **Random Forest Regressor** provides accurate and reliable predictions._
